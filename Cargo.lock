@@ -264,6 +264,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "exchange-settlement"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "exchange-instrument",
+ "exchange-matching",
+ "exchange-oms",
+ "exchange-primitives",
+ "exchange-risk",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "exchange-wallet"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "exchange-instrument",
+ "exchange-primitives",
+ "exchange-settlement",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

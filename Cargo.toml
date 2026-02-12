@@ -6,6 +6,8 @@ members = [
     "core/oms",
     "core/matching",
     "core/risk",
+    "core/settlement",
+    "core/wallet",
     "adapters/storage",
     "tests/integration",
 ]
