@@ -8,9 +8,24 @@ publish = false
 name = "instrument_integration"
 path = "src/instrument_tests.rs"
 
+[[test]]
+name = "oms_integration"
+path = "src/oms_tests.rs"
+
+[[test]]
+name = "matching_integration"
+path = "src/matching_tests.rs"
+
+[[test]]
+name = "risk_integration"
+path = "src/risk_tests.rs"
+
 [dev-dependencies]
 exchange-primitives = { path = "../../core/primitives" }
 exchange-instrument = { path = "../../core/instrument" }
+exchange-oms = { path = "../../core/oms" }
+exchange-matching = { path = "../../core/matching" }
+exchange-risk = { path = "../../core/risk" }
 exchange-adapters-storage = { path = "../../adapters/storage" }
 tokio = { workspace = true, features = ["test-util", "macros"] }
 chrono = { workspace = true }

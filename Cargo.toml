@@ -3,6 +3,9 @@ resolver = "2"
 members = [
     "core/primitives",
     "core/instrument",
+    "core/oms",
+    "core/matching",
+    "core/risk",
     "adapters/storage",
     "tests/integration",
 ]
@@ -37,6 +40,9 @@ thiserror = "2"
 
 # Logging
 tracing = "0.1"
+
+# Ordered floats (for BTreeMap keys in order book)
+ordered-float = "4"
 
 # Testing
 proptest = "1"

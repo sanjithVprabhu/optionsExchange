@@ -164,6 +164,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "exchange-instrument",
+ "exchange-oms",
  "exchange-primitives",
  "serde",
  "serde_json",
@@ -197,8 +198,41 @@ dependencies = [
  "chrono",
  "exchange-adapters-storage",
  "exchange-instrument",
+ "exchange-matching",
+ "exchange-oms",
  "exchange-primitives",
+ "exchange-risk",
  "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "exchange-matching"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "exchange-oms",
+ "ordered-float",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "exchange-oms"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "exchange-instrument",
+ "exchange-primitives",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
  "uuid",
 ]
 
@@ -211,6 +245,21 @@ dependencies = [
  "serde_json",
  "sha2",
  "thiserror",
+ "uuid",
+]
+
+[[package]]
+name = "exchange-risk"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "exchange-instrument",
+ "exchange-oms",
+ "exchange-primitives",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
  "uuid",
 ]
 
@@ -416,6 +465,15 @@ name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
+
+[[package]]
+name = "ordered-float"
+version = "4.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7bb71e1b3fa6ca1c61f383464aaf2bb0e2f8e772a1f01d486832464de363b951"
+dependencies = [
+ "num-traits",
+]
 
 [[package]]
 name = "parking_lot"

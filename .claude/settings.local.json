@@ -6,7 +6,8 @@
       "Bash(cargo test:*)",
       "Bash(rustc:*)",
       "Bash(cargo --version:*)",
-      "Bash(rustup update:*)"
+      "Bash(rustup update:*)",
+      "Bash(cargo check:*)"
     ]
   }
 }

@@ -1,19 +1,15 @@
 [package]
-name = "exchange-adapters-storage"
+name = "exchange-matching"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
-exchange-primitives = { path = "../../core/primitives" }
-exchange-instrument = { path = "../../core/instrument" }
-exchange-oms = { path = "../../core/oms" }
-async-trait = { workspace = true }
+exchange-oms = { path = "../oms" }
 chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true }
-thiserror = { workspace = true }
-tokio = { workspace = true }
+ordered-float = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
