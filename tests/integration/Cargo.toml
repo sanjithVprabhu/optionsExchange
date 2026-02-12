@@ -1,0 +1,17 @@
+[package]
+name = "exchange-integration-tests"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[[test]]
+name = "instrument_integration"
+path = "src/instrument_tests.rs"
+
+[dev-dependencies]
+exchange-primitives = { path = "../../core/primitives" }
+exchange-instrument = { path = "../../core/instrument" }
+exchange-adapters-storage = { path = "../../adapters/storage" }
+tokio = { workspace = true, features = ["test-util", "macros"] }
+chrono = { workspace = true }
+uuid = { workspace = true }

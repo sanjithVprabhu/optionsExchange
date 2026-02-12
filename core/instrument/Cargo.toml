@@ -1,0 +1,20 @@
+[package]
+name = "exchange-instrument"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+exchange-primitives = { path = "../primitives" }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }
+proptest = { workspace = true }

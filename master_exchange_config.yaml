@@ -1,0 +1,1170 @@
+# ==================================================================================
+# WHITE-LABEL OPTIONS EXCHANGE - MASTER CONFIGURATION
+# ==================================================================================
+# Version: 1.0
+# 
+# This configuration file controls ALL aspects of the exchange deployment.
+# Customers can deploy the same codebase with different infrastructure by
+# modifying only this file and environment variables.
+#
+# Environment variables are referenced as: ${VAR_NAME}
+# ==================================================================================
+
+# ==================================================================================
+# EXCHANGE METADATA
+# ==================================================================================
+exchange:
+  name: "Acme Options Exchange"
+  description: "Professional crypto options trading platform"
+  version: "1.0.0"
+  timezone: "UTC"
+  
+  # Operating mode
+  mode: "production"  # production, virtual, both
+  
+  # Trading hours (24/7 for crypto)
+  trading_hours:
+    type: "24/7"  # or "scheduled" for traditional markets
+    # schedule:  # Only if type="scheduled"
+    #   open_time: "09:30"
+    #   close_time: "16:00"
+    #   trading_days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+
+# ==================================================================================
+# MODULE 1: MARKET INSTRUMENT LAYER
+# ==================================================================================
+instrument_layer:
+  
+  # Supported underlying assets
+  supported_assets:
+    - symbol: "BTC"
+      name: "Bitcoin"
+      decimals: 8
+      contract_size: 0.01              # Each contract = 0.01 BTC
+      min_order_size: 1                # Minimum 1 contract per order
+      tick_size: 0.5                   # Price increments in 0.5 USDT
+      price_decimals: 2                # Display 2 decimals for prices
+      enabled: true
+      
+    - symbol: "ETH"
+      name: "Ethereum"
+      decimals: 18
+      contract_size: 0.1               # Each contract = 0.1 ETH
+      min_order_size: 1
+      tick_size: 0.1
+      price_decimals: 2
+      enabled: true
+      
+    - symbol: "SOL"
+      name: "Solana"
+      decimals: 9
+      contract_size: 1.0               # Each contract = 1 SOL
+      min_order_size: 1
+      tick_size: 0.01
+      price_decimals: 3
+      enabled: false                   # Disabled by default
+  
+  # Settlement currencies
+  settlement_currencies:
+    - symbol: "USDT"
+      name: "Tether USD"
+      decimals: 6
+      enabled: true
+      primary: true                    # Primary settlement currency
+      
+      # Multi-chain support
+      chains:
+        - chain: "ethereum"
+          chain_id: 1
+          contract_address: "0xdac17f958d2ee523a2206206994597c13d831ec7"
+          rpc_url: "${ETH_MAINNET_RPC_URL}"
+          gas_limit: 100000
+          enabled: true
+          
+        - chain: "polygon"
+          chain_id: 137
+          contract_address: "0xc2132d05d31c914a87c6611c10748aeb04b58e8f"
+          rpc_url: "${POLYGON_RPC_URL}"
+          gas_limit: 80000
+          enabled: true
+          
+        - chain: "arbitrum"
+          chain_id: 42161
+          contract_address: "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9"
+          rpc_url: "${ARBITRUM_RPC_URL}"
+          gas_limit: 50000
+          enabled: false
+    
+    - symbol: "USDC"
+      name: "USD Coin"
+      decimals: 6
+      enabled: false
+      primary: false
+      
+      chains:
+        - chain: "ethereum"
+          chain_id: 1
+          contract_address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+          rpc_url: "${ETH_MAINNET_RPC_URL}"
+          gas_limit: 100000
+          enabled: false
+  
+  # Market data sources (spot prices)
+  market_data:
+    primary_provider: "binance"
+    
+    providers:
+      binance:
+        type: "websocket"
+        endpoint: "wss://stream.binance.com:9443/ws"
+        enabled: true
+        
+        # Asset-specific streams
+        streams:
+          BTC: "btcusdt@ticker"
+          ETH: "ethusdt@ticker"
+          SOL: "solusdt@ticker"
+        
+        # Connection settings
+        reconnect_delay_seconds: 5
+        max_reconnect_attempts: 10
+        heartbeat_interval_seconds: 30
+        connection_timeout_seconds: 10
+        
+      coinbase:
+        type: "rest"
+        endpoint: "https://api.coinbase.com/v2"
+        enabled: false
+        
+        rate_limit_per_second: 10
+        timeout_seconds: 5
+        
+        # Authentication (if needed)
+        auth:
+          type: "api_key"
+          api_key: "${COINBASE_API_KEY}"
+          api_secret: "${COINBASE_API_SECRET}"
+      
+      custom_oracle:
+        type: "grpc"
+        endpoint: "grpc://oracle.internal:50051"
+        enabled: false
+        
+        tls_enabled: true
+        cert_path: "/etc/certs/oracle.crt"
+        key_path: "/etc/certs/oracle.key"
+        
+        timeout_seconds: 3
+    
+    # Fallback strategy when primary provider fails
+    fallback_strategy: "median"  # Options: median, average, last_valid, fail
+    
+    # Price staleness check
+    max_price_age_seconds: 10
+    stale_price_action: "halt_trading"  # halt_trading, use_fallback, continue
+  
+  # Expiry schedule configuration
+  expiry_schedule:
+    # Daily expiries (next N days)
+    daily:
+      enabled: true
+      count: 7                         # Next 7 days
+      expiry_time_utc: "08:00"         # 8 AM UTC
+    
+    # Weekly expiries (Fridays)
+    weekly:
+      enabled: true
+      count: 4                         # Next 4 weeks
+      day_of_week: "Friday"
+      expiry_time_utc: "08:00"
+    
+    # Monthly expiries (last Friday of month)
+    monthly:
+      enabled: true
+      count: 6                         # Next 6 months
+      day_type: "last_friday"
+      expiry_time_utc: "08:00"
+    
+    # Quarterly expiries (March, June, September, December)
+    quarterly:
+      enabled: true
+      months: [3, 6, 9, 12]            # Mar, Jun, Sep, Dec
+      day_type: "last_friday"
+      expiry_time_utc: "08:00"
+    
+    # Yearly expiries
+    yearly:
+      enabled: false
+      day_type: "last_friday"
+      month: 12                        # December
+      expiry_time_utc: "08:00"
+  
+  # Storage configuration
+  storage:
+    type: "postgres"  # postgres, supabase, mysql, cockroachdb, inmemory
+    
+    postgres:
+      host: "${INSTRUMENT_DB_HOST}"
+      port: 5432
+      database: "instruments"
+      user: "${INSTRUMENT_DB_USER}"
+      password: "${INSTRUMENT_DB_PASSWORD}"
+      ssl_mode: "require"
+      max_connections: 20
+      connection_timeout_seconds: 30
+      idle_timeout_seconds: 600
+      
+    # Alternative: Supabase
+    # supabase:
+    #   url: "${SUPABASE_URL}"
+    #   anon_key: "${SUPABASE_ANON_KEY}"
+    #   service_role_key: "${SUPABASE_SERVICE_KEY}"
+    
+    # Alternative: In-memory (testing only)
+    # inmemory:
+    #   persist_to_disk: true
+    #   file_path: "/tmp/instruments.json"
+  
+  # Caching
+  cache:
+    enabled: true
+    ttl_seconds: 300                   # Cache instruments for 5 minutes
+    max_entries: 10000
+
+# ==================================================================================
+# MODULE 2: ORDER MANAGEMENT SYSTEM (OMS)
+# ==================================================================================
+oms:
+  
+  # Supported order types
+  order_types:
+    limit:
+      enabled: true
+    market:
+      enabled: true
+    stop_limit:
+      enabled: false  # Phase 2
+    stop_market:
+      enabled: false  # Phase 2
+  
+  # Time-in-force options
+  time_in_force:
+    GTC:  # Good Till Cancel
+      enabled: true
+    IOC:  # Immediate or Cancel
+      enabled: true
+    FOK:  # Fill or Kill
+      enabled: true
+    DAY:  # Day order
+      enabled: false
+  
+  # Order limits
+  limits:
+    max_open_orders_per_user: 100
+    max_order_size_contracts: 10000
+    min_order_size_contracts: 1
+    max_price_deviation_percent: 20.0  # Reject orders >20% from mark price
+  
+  # Order book configuration
+  orderbook:
+    depth_levels: 50                   # How many price levels to maintain
+    update_frequency_ms: 100           # Broadcast updates every 100ms
+  
+  # Storage
+  storage:
+    type: "postgres"
+    
+    postgres:
+      host: "${OMS_DB_HOST}"
+      port: 5432
+      database: "orders"
+      user: "${OMS_DB_USER}"
+      password: "${OMS_DB_PASSWORD}"
+      ssl_mode: "require"
+      max_connections: 50
+      
+      # Partitioning for high volume
+      partition_by: "month"
+      retention_days: 365
+
+# ==================================================================================
+# MODULE 3: MATCHING ENGINE
+# ==================================================================================
+matching_engine:
+  
+  # Matching algorithm
+  algorithm: "price_time_priority"     # Standard FIFO at each price level
+  
+  # Performance settings
+  performance:
+    matching_frequency_ms: 10          # Run matching every 10ms
+    batch_size: 100                    # Process up to 100 orders per batch
+    
+  # Order book storage (in-memory for speed)
+  orderbook_store:
+    type: "redis"  # redis, inmemory
+    
+    redis:
+      host: "${REDIS_HOST}"
+      port: 6379
+      password: "${REDIS_PASSWORD}"
+      cluster_mode: false
+      db_index: 0
+      
+      # Persistence
+      persistence_enabled: true
+      snapshot_interval_seconds: 60
+  
+  # Trade execution
+  execution:
+    atomic_trades: true                # Ensure atomic settlement
+    max_partial_fills: 10              # Max fills per order
+    
+  # Circuit breakers
+  circuit_breakers:
+    enabled: true
+    
+    # Halt trading if price moves too fast
+    price_movement:
+      enabled: true
+      percent_threshold: 10.0          # 10% move in interval
+      time_window_seconds: 60
+      halt_duration_seconds: 300       # 5 minute halt
+    
+    # Halt if order book becomes too thin
+    liquidity:
+      enabled: true
+      min_bid_ask_orders: 5
+      max_spread_percent: 5.0
+      halt_duration_seconds: 60
+
+# ==================================================================================
+# MODULE 4: RISK ENGINE
+# ==================================================================================
+risk_engine:
+  
+  # Margin calculation method
+  margin_method: "simplified_span"     # simplified_span, portfolio_margin
+  
+  # Initial margin requirements (as % of notional)
+  initial_margin:
+    BTC: 0.20  # 20% initial margin
+    ETH: 0.25  # 25% initial margin
+    SOL: 0.30  # 30% initial margin
+  
+  # Maintenance margin (as % of notional)
+  maintenance_margin:
+    BTC: 0.15  # 15% maintenance margin
+    ETH: 0.20  # 20% maintenance margin
+    SOL: 0.25  # 25% maintenance margin
+  
+  # Liquidation settings
+  liquidation:
+    enabled: true
+    threshold: 0.80                    # Liquidate at 80% of maintenance margin
+    
+    # Liquidation engine settings
+    check_frequency_seconds: 5
+    partial_liquidation: true          # Try to partially liquidate first
+    
+    # Insurance fund
+    insurance_fund:
+      enabled: true
+      initial_balance_usdt: 100000.0
+      replenishment_percent: 0.10      # 10% of liquidation proceeds to fund
+  
+  # Position limits
+  position_limits:
+    max_contracts_per_instrument: 1000
+    max_notional_per_user_usdt: 1000000.0
+    max_delta_exposure_btc: 10.0
+    max_gamma_exposure: 100.0
+  
+  # Greeks calculation
+  greeks:
+    enabled: true
+    calculation_frequency_seconds: 10
+    
+    # Black-Scholes parameters
+    risk_free_rate: 0.05               # 5% annual
+    
+    # Volatility sources
+    volatility:
+      type: "implied"                  # implied, historical, manual
+      historical_days: 30              # If type=historical
+      manual_values:                   # If type=manual
+        BTC: 0.80
+        ETH: 0.90
+  
+  # Storage
+  storage:
+    type: "postgres"
+    
+    postgres:
+      host: "${RISK_DB_HOST}"
+      port: 5432
+      database: "risk"
+      user: "${RISK_DB_USER}"
+      password: "${RISK_DB_PASSWORD}"
+      ssl_mode: "require"
+      max_connections: 30
+
+# ==================================================================================
+# MODULE 5: CLEARING & SETTLEMENT
+# ==================================================================================
+settlement:
+  
+  # Settlement timing
+  timing:
+    trade_settlement_delay_seconds: 2  # Settle trades after 2 seconds
+    expiry_settlement_delay_seconds: 60 # Wait 60s after expiry before settling
+  
+  # Settlement method
+  method: "cash_settled"               # cash_settled (only option for v1)
+  
+  # Mark price calculation (for settlement)
+  mark_price:
+    calculation_method: "spot"         # spot, index, twap
+    
+    # If method=twap
+    twap:
+      window_seconds: 300              # 5 minute TWAP
+      
+    # If method=index (composite of multiple exchanges)
+    index:
+      sources:
+        - exchange: "binance"
+          weight: 0.4
+        - exchange: "coinbase"
+          weight: 0.3
+        - exchange: "kraken"
+          weight: 0.3
+  
+  # Blockchain settlement (for collateral)
+  blockchain:
+    enabled: true
+    
+    # Which chain to use for settlement
+    primary_chain: "ethereum"          # ethereum, polygon, arbitrum
+    
+    # Settlement wallet
+    settlement_wallet:
+      type: "multisig"                 # hot_wallet, cold_wallet, multisig, custody_api
+      
+      # Multisig config
+      multisig:
+        threshold: "2/3"               # 2 of 3 signatures required
+        signers:
+          - address: "${SIGNER_1_ADDRESS}"
+          - address: "${SIGNER_2_ADDRESS}"
+          - address: "${SIGNER_3_ADDRESS}"
+      
+      # Key management
+      key_management:
+        type: "aws_kms"                # aws_kms, gcp_kms, hashicorp_vault, local
+        
+        aws_kms:
+          region: "us-east-1"
+          key_id: "${AWS_KMS_KEY_ID}"
+          
+    # Gas settings
+    gas:
+      strategy: "medium"               # low, medium, high, custom
+      max_gas_price_gwei: 200
+      gas_limit_multiplier: 1.2        # 20% buffer
+      
+    # Transaction confirmation
+    confirmations:
+      deposits: 12                     # Wait 12 blocks for deposits
+      withdrawals: 3                   # Wait 3 blocks for withdrawals
+  
+  # Storage (event log)
+  storage:
+    type: "postgres"  # timescaledb for high volume
+    
+    postgres:
+      host: "${SETTLEMENT_DB_HOST}"
+      port: 5432
+      database: "settlement"
+      user: "${SETTLEMENT_DB_USER}"
+      password: "${SETTLEMENT_DB_PASSWORD}"
+      ssl_mode: "require"
+      max_connections: 20
+      
+      # Event log is append-only
+      partition_by: "month"
+      retention_days: 3650               # 10 years
+
+# ==================================================================================
+# MODULE 6: WALLET & COLLATERAL SYSTEM
+# ==================================================================================
+wallet:
+  
+  # Wallet types
+  types:
+    hot_wallet:
+      enabled: true
+      max_balance_usdt: 100000.0       # Max in hot wallet
+      auto_sweep_threshold: 80000.0    # Sweep to cold at this amount
+      
+    cold_wallet:
+      enabled: true
+      withdrawal_delay_hours: 24       # 24h delay for cold wallet
+  
+  # Deposit settings
+  deposits:
+    enabled: true
+    min_deposit_usdt: 10.0
+    max_deposit_usdt: 1000000.0
+    
+    # Auto-credit after confirmations
+    auto_credit: true
+    
+  # Withdrawal settings
+  withdrawals:
+    enabled: true
+    min_withdrawal_usdt: 10.0
+    max_withdrawal_usdt: 100000.0
+    
+    # Withdrawal limits
+    limits:
+      daily_limit_usdt: 100000.0
+      monthly_limit_usdt: 1000000.0
+    
+    # Withdrawal approval
+    approval:
+      auto_approve_under_usdt: 10000.0
+      manual_review_over_usdt: 10000.0
+    
+    # Withdrawal fees
+    fees:
+      type: "flat"                     # flat, percentage
+      flat_fee_usdt: 1.0
+      min_fee_usdt: 1.0
+      max_fee_usdt: 50.0
+  
+  # Collateral management
+  collateral:
+    # How much of balance is available vs locked
+    allocation:
+      auto_lock: true                  # Auto-lock margin for positions
+      release_on_close: true           # Release margin when position closes
+    
+    # Collateral ratios
+    ratios:
+      over_collateralization: 1.5      # Require 150% of margin
+  
+  # Storage
+  storage:
+    type: "postgres"
+    
+    postgres:
+      host: "${WALLET_DB_HOST}"
+      port: 5432
+      database: "wallets"
+      user: "${WALLET_DB_USER}"
+      password: "${WALLET_DB_PASSWORD}"
+      ssl_mode: "require"
+      max_connections: 50
+      
+      # Critical: ACID guarantees
+      isolation_level: "serializable"
+      
+      # Audit logging
+      audit_log_enabled: true
+
+# ==================================================================================
+# MODULE 7: MARKET DATA & FEEDS
+# ==================================================================================
+market_data:
+  
+  # What data to publish
+  feeds:
+    orderbook:
+      enabled: true
+      depth_levels: 20                 # Top 20 bid/ask levels
+      update_frequency_ms: 100
+      aggregation: true                # Aggregate same-price orders
+      
+    trades:
+      enabled: true
+      publish_all_trades: true
+      buffer_size: 1000                # Keep last 1000 trades
+      
+    ticker:
+      enabled: true
+      update_frequency_ms: 1000        # 1 second ticker updates
+      include_24h_stats: true
+      
+    greeks:
+      enabled: true
+      update_frequency_seconds: 10
+      
+    mark_price:
+      enabled: true
+      update_frequency_seconds: 5
+  
+  # Distribution channels
+  channels:
+    websocket:
+      enabled: true
+      max_connections: 10000
+      message_rate_limit: 100          # Max 100 messages/second per connection
+      compression: true
+      
+    rest_api:
+      enabled: true
+      rate_limit_per_minute: 600
+      cache_ttl_seconds: 1
+      
+    grpc:
+      enabled: false                   # Disabled by default
+  
+  # Historical data
+  historical:
+    enabled: true
+    retention_days: 365
+    
+    # Storage (separate from operational DBs)
+    storage:
+      type: "postgres"  # or clickhouse for analytics
+      
+      postgres:
+        host: "${MARKET_DATA_DB_HOST}"
+        port: 5432
+        database: "market_data"
+        user: "${MARKET_DATA_DB_USER}"
+        password: "${MARKET_DATA_DB_PASSWORD}"
+        ssl_mode: "require"
+        
+        # Time-series optimization
+        partition_by: "day"
+        indexes: ["instrument_id", "timestamp"]
+
+# ==================================================================================
+# SERVICE DISCOVERY & INTER-MODULE COMMUNICATION
+# ==================================================================================
+services:
+  
+  # Service registry
+  registry:
+    type: "static"                     # static, consul, etcd, kubernetes
+    
+    # Static configuration (hosts/ports defined here)
+    static:
+      instrument_service:
+        host: "${INSTRUMENT_HOST:-localhost}"
+        port: 3000
+        
+      oms_service:
+        host: "${OMS_HOST:-localhost}"
+        port: 3001
+        
+      matching_service:
+        host: "${MATCHING_HOST:-localhost}"
+        port: 3002
+        
+      risk_service:
+        host: "${RISK_HOST:-localhost}"
+        port: 3003
+        
+      settlement_service:
+        host: "${SETTLEMENT_HOST:-localhost}"
+        port: 3004
+        
+      wallet_service:
+        host: "${WALLET_HOST:-localhost}"
+        port: 3005
+        
+      market_data_service:
+        host: "${MARKET_DATA_HOST:-localhost}"
+        port: 3006
+  
+  # Communication protocol
+  communication:
+    default_protocol: "grpc"           # grpc, http, websocket
+    
+    # Protocol-specific settings
+    grpc:
+      tls_enabled: true
+      cert_path: "${GRPC_CERT_PATH}"
+      key_path: "${GRPC_KEY_PATH}"
+      max_message_size_mb: 4
+      keepalive_interval_seconds: 30
+      
+    http:
+      tls_enabled: true
+      cert_path: "${HTTP_CERT_PATH}"
+      key_path: "${HTTP_KEY_PATH}"
+      timeout_seconds: 30
+      
+    websocket:
+      tls_enabled: true
+      ping_interval_seconds: 30
+      max_frame_size_mb: 1
+  
+  # Authentication between services
+  auth:
+    type: "bearer_token"               # bearer_token, mutual_tls, api_key
+    
+    bearer_token:
+      instrument_service: "${INSTRUMENT_AUTH_TOKEN}"
+      oms_service: "${OMS_AUTH_TOKEN}"
+      matching_service: "${MATCHING_AUTH_TOKEN}"
+      risk_service: "${RISK_AUTH_TOKEN}"
+      settlement_service: "${SETTLEMENT_AUTH_TOKEN}"
+      wallet_service: "${WALLET_AUTH_TOKEN}"
+      market_data_service: "${MARKET_DATA_AUTH_TOKEN}"
+  
+  # Message routing (how modules talk to each other)
+  routing:
+    
+    # Order submission flow: OMS → Risk → Matching
+    order_submission:
+      - from: "oms_service"
+        to: "risk_service"
+        endpoint: "/v1/risk/check"
+        protocol: "grpc"
+        timeout_ms: 100
+        retry:
+          max_attempts: 3
+          backoff_ms: 100
+          
+      - from: "risk_service"
+        to: "matching_service"
+        endpoint: "/v1/matching/receive"
+        protocol: "grpc"
+        timeout_ms: 50
+        retry:
+          max_attempts: 0              # No retries for matching
+        condition: "risk_approved"
+    
+    # Trade execution flow: Matching → Settlement → Wallet
+    trade_execution:
+      - from: "matching_service"
+        to: "settlement_service"
+        endpoint: "/v1/settlement/settle"
+        protocol: "grpc"
+        async: true
+        
+      - from: "settlement_service"
+        to: "wallet_service"
+        endpoint: "/v1/wallet/update"
+        protocol: "grpc"
+        async: false
+        retry:
+          max_attempts: 5
+          backoff_ms: 1000
+    
+    # Market data broadcast: Settlement → Market Data
+    market_data_broadcast:
+      - from: "settlement_service"
+        to: "market_data_service"
+        endpoint: "/v1/data/publish"
+        protocol: "grpc"
+        async: true
+
+# ==================================================================================
+# EXTERNAL APIs (USER-FACING)
+# ==================================================================================
+api:
+  
+  # REST API
+  rest:
+    enabled: true
+    host: "0.0.0.0"
+    port: 8080
+    
+    tls:
+      enabled: true
+      cert_path: "${API_CERT_PATH}"
+      key_path: "${API_KEY_PATH}"
+    
+    # Rate limiting
+    rate_limit:
+      enabled: true
+      
+      # Per-user limits
+      authenticated:
+        requests_per_minute: 600
+        burst: 100
+      
+      # IP-based limits
+      anonymous:
+        requests_per_minute: 60
+        burst: 10
+    
+    # CORS
+    cors:
+      enabled: true
+      allowed_origins:
+        - "https://app.example.com"
+        - "https://www.example.com"
+      allowed_methods: ["GET", "POST", "DELETE"]
+      max_age_seconds: 3600
+    
+    # API versioning
+    versioning:
+      current_version: "v1"
+      supported_versions: ["v1"]
+      deprecated_versions: []
+  
+  # WebSocket API
+  websocket:
+    enabled: true
+    host: "0.0.0.0"
+    port: 8081
+    
+    tls:
+      enabled: true
+      cert_path: "${WS_CERT_PATH}"
+      key_path: "${WS_KEY_PATH}"
+    
+    # Connection limits
+    max_connections: 10000
+    max_connections_per_ip: 10
+    
+    # Message limits
+    max_message_size_kb: 64
+    messages_per_second: 100
+    
+    # Heartbeat
+    ping_interval_seconds: 30
+    pong_timeout_seconds: 10
+  
+  # gRPC API (for programmatic traders)
+  grpc:
+    enabled: false
+    host: "0.0.0.0"
+    port: 50051
+    
+    tls:
+      enabled: true
+      cert_path: "${GRPC_API_CERT_PATH}"
+      key_path: "${GRPC_API_KEY_PATH}"
+  
+  # Authentication
+  authentication:
+    type: "jwt"                        # jwt, api_key, oauth2
+    
+    jwt:
+      secret: "${JWT_SECRET}"
+      issuer: "acme-options-exchange"
+      expiry_seconds: 3600             # 1 hour
+      refresh_enabled: true
+      refresh_expiry_seconds: 604800   # 7 days
+    
+    # API key auth (alternative)
+    # api_key:
+    #   header_name: "X-API-Key"
+    #   require_ip_whitelist: false
+
+# ==================================================================================
+# VIRTUAL TRADING MODE (PAPER TRADING)
+# ==================================================================================
+virtual_trading:
+  enabled: true
+  
+  # Run on different ports
+  port_offset: 1000                    # Virtual services on port + 1000
+  
+  # Disable real settlement
+  settlement:
+    blockchain_enabled: false
+    real_money: false
+    mock_settlement_delay_ms: 100
+  
+  # Use separate databases
+  storage:
+    instrument_db:
+      database: "instruments_virtual"
+      
+    oms_db:
+      database: "orders_virtual"
+      
+    orderbook_store:
+      db_index: 1                      # Redis DB 1 for virtual
+      
+    wallet_db:
+      database: "wallets_virtual"
+  
+  # Virtual users get play money
+  virtual_users:
+    initial_balance_usdt: 100000.0
+    reset_balance_daily: false
+  
+  # Market data
+  market_data:
+    mode: "live"                       # live, replay, synthetic
+    
+    # If mode=replay
+    replay:
+      start_timestamp: "2024-01-01T00:00:00Z"
+      speed_multiplier: 1.0            # 1x = real-time, 10x = faster
+      
+    # If mode=synthetic
+    synthetic:
+      volatility: 0.02
+      drift: 0.0
+
+# ==================================================================================
+# FEES & REVENUE
+# ==================================================================================
+fees:
+  
+  # Trading fees
+  trading:
+    maker_fee_bps: 10                  # 0.10% (10 basis points)
+    taker_fee_bps: 20                  # 0.20%
+    
+    # Volume-based tiers
+    volume_tiers:
+      enabled: false
+      # tiers:
+      #   - volume_30d_usdt: 0
+      #     maker_fee_bps: 10
+      #     taker_fee_bps: 20
+      #   - volume_30d_usdt: 1000000
+      #     maker_fee_bps: 8
+      #     taker_fee_bps: 18
+  
+  # Settlement fees
+  settlement:
+    type: "flat"                       # flat, percentage
+    flat_fee_usdt: 1.0
+    
+  # Withdrawal fees (defined in wallet section)
+  
+  # Fee collection
+  collection:
+    wallet_address: "${FEE_COLLECTION_WALLET}"
+    auto_collect: true
+    collection_frequency_hours: 24
+
+# ==================================================================================
+# COMPLIANCE & REGULATORY
+# ==================================================================================
+compliance:
+  
+  # KYC/AML
+  kyc:
+    enabled: false                     # Enable in production
+    required_for_trading: true
+    
+    # Provider integration
+    provider: "sumsub"                 # sumsub, onfido, jumio
+    
+    sumsub:
+      app_token: "${SUMSUB_APP_TOKEN}"
+      secret_key: "${SUMSUB_SECRET_KEY}"
+      
+    # Verification levels
+    levels:
+      tier1:
+        max_daily_volume_usdt: 10000
+        max_withdrawal_usdt: 2000
+      tier2:
+        max_daily_volume_usdt: 100000
+        max_withdrawal_usdt: 20000
+      tier3:
+        max_daily_volume_usdt: null    # No limit
+        max_withdrawal_usdt: null
+  
+  # Geo-blocking
+  geo_restrictions:
+    enabled: false
+    blocked_countries: []              # ISO country codes
+    # blocked_countries: ["US", "KP", "IR"]
+  
+  # Audit logging
+  audit:
+    enabled: true
+    log_all_trades: true
+    log_all_withdrawals: true
+    log_all_admin_actions: true
+    
+    # Storage
+    storage:
+      type: "postgres"
+      retention_years: 7               # Regulatory requirement
+
+# ==================================================================================
+# MONITORING & OBSERVABILITY
+# ==================================================================================
+monitoring:
+  
+  # Metrics
+  metrics:
+    enabled: true
+    provider: "prometheus"             # prometheus, datadog, cloudwatch
+    
+    prometheus:
+      port: 9090
+      path: "/metrics"
+      
+    # What to track
+    track:
+      - "order_latency"
+      - "matching_latency"
+      - "trade_volume"
+      - "orderbook_depth"
+      - "risk_checks"
+      - "liquidations"
+      - "api_requests"
+      - "websocket_connections"
+  
+  # Logging
+  logging:
+    level: "info"                      # debug, info, warn, error
+    format: "json"                     # json, text
+    
+    # Outputs
+    outputs:
+      console: true
+      file: true
+      
+    # File logging
+    file:
+      path: "/var/log/exchange"
+      max_size_mb: 100
+      max_backups: 10
+      max_age_days: 30
+      
+    # Centralized logging
+    centralized:
+      enabled: false
+      provider: "elasticsearch"        # elasticsearch, splunk, cloudwatch
+      
+      elasticsearch:
+        url: "${ELASTICSEARCH_URL}"
+        index_prefix: "exchange-logs"
+  
+  # Tracing
+  tracing:
+    enabled: true
+    provider: "jaeger"                 # jaeger, zipkin, datadog
+    
+    jaeger:
+      endpoint: "http://jaeger:14268/api/traces"
+      sample_rate: 0.1                 # Sample 10% of requests
+  
+  # Alerting
+  alerting:
+    enabled: true
+    provider: "pagerduty"              # pagerduty, opsgenie, email
+    
+    pagerduty:
+      integration_key: "${PAGERDUTY_KEY}"
+      
+    # Alert rules
+    rules:
+      - name: "high_latency"
+        condition: "matching_latency_ms > 100"
+        severity: "warning"
+        
+      - name: "circuit_breaker_triggered"
+        condition: "circuit_breaker_active == true"
+        severity: "critical"
+        
+      - name: "low_liquidity"
+        condition: "orderbook_depth < 10"
+        severity: "warning"
+
+# ==================================================================================
+# SECURITY
+# ==================================================================================
+security:
+  
+  # Encryption
+  encryption:
+    at_rest:
+      enabled: true
+      algorithm: "AES-256-GCM"
+      key_rotation_days: 90
+      
+    in_transit:
+      tls_version: "1.3"
+      min_tls_version: "1.2"
+  
+  # Secrets management
+  secrets:
+    provider: "aws_secrets_manager"    # aws_secrets_manager, hashicorp_vault, env
+    
+    aws_secrets_manager:
+      region: "us-east-1"
+      secret_prefix: "exchange/"
+  
+  # DDoS protection
+  ddos:
+    enabled: true
+    cloudflare: true
+    rate_limiting: true
+    
+  # Firewall rules
+  firewall:
+    whitelist_ips: []
+    blacklist_ips: []
+
+# ==================================================================================
+# DEPLOYMENT
+# ==================================================================================
+deployment:
+  
+  environment: "production"            # development, staging, production
+  
+  # Infrastructure
+  infrastructure:
+    type: "kubernetes"                 # docker, kubernetes, ec2, serverless
+    
+    kubernetes:
+      namespace: "options-exchange"
+      replicas:
+        instrument_service: 2
+        oms_service: 3
+        matching_service: 2
+        risk_service: 2
+        settlement_service: 2
+        wallet_service: 3
+        market_data_service: 2
+      
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "1Gi"
+        limits:
+          cpu: "2000m"
+          memory: "4Gi"
+      
+      autoscaling:
+        enabled: true
+        min_replicas: 2
+        max_replicas: 10
+        cpu_threshold_percent: 70
+  
+  # Health checks
+  health_checks:
+    enabled: true
+    endpoint: "/health"
+    interval_seconds: 10
+    timeout_seconds: 5
+    
+  # Graceful shutdown
+  graceful_shutdown:
+    timeout_seconds: 30
+    drain_connections: true
+
+# ==================================================================================
+# FEATURE FLAGS
+# ==================================================================================
+features:
+  advanced_order_types: false          # Stop-loss, trailing stop, etc.
+  portfolio_margin: false              # Advanced margin calculation
+  options_strategies: false            # Spreads, straddles, etc.
+  social_trading: false                # Copy trading
+  api_trading_bots: true
+  mobile_app: false
+  institutional_api: false
+
+# ==================================================================================
+# END OF CONFIGURATION
+# ==================================================================================
